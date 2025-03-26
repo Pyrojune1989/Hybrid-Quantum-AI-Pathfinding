@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 import numpy as np
 import tensorflow as tf
-from qiskit.circuit import Parameter, QuantumCircuit
-from qiskit.providers.aer import Aer
-from qiskit import execute
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from functools import lru_cache
 import pennylane as qml
 import cirq
-from keras.preprocessing.image import ImageDataGenerator
-from keras import models, layers
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import models, layers
 
 # Hebrew Letters Mapping
 hebrew_letters = [
@@ -39,36 +36,10 @@ def generate_sequence(n_terms=29):
         sequence.append((letter, symbol, increment, result))
     return sequence
 
-# Quantum Feature Map Setup
-def create_quantum_feature_map():
-    n_qubits = 2  # Number of qubits
-    circ = QuantumCircuit(n_qubits)
-    theta = Parameter('θ')
-
-    # Example of a quantum feature map (entangling gates + rotation gates)
-    circ.h(0)
-    circ.cx(0, 1)
-    circ.rz(theta, 0)
-    circ.rz(theta, 1)
-
-    return circ
-
-# Run the quantum circuit to get features
-def get_quantum_features(data, feature_map):
-    simulator = Aer.get_backend('statevector_simulator')
-
-    # Use the data as parameters for the quantum circuit
-    theta_values = np.array(data)  # Assuming data is preprocessed and ready to use
-
-    features = []
-    for theta in theta_values:
-        if len(feature_map.parameters) != 1:
-            raise ValueError("Feature map must have exactly one parameter.")
-        feature_map = feature_map.bind_parameters({feature_map.parameters[0]: theta})
-        result = execute(feature_map, simulator).result()
-        statevector = result.get_statevector()
-        features.append(np.abs(statevector)**2)  # Get the probability distribution
-    return np.array(features)
+# Run a simulated feature map (remove Qiskit-specific quantum circuit setup)
+def get_classical_features(data):
+    # Just return the data as is or apply a simple transformation
+    return np.array(data)
 
 # NASA Path Finder Class with Visualization
 class NASAPathFinderVisualizer:
@@ -107,39 +78,6 @@ class NASAPathFinderVisualizer:
         plt.yticks(range(n))
         plt.grid(visible=True, which='both', color='black', linestyle='--', linewidth=0.5)
         plt.show()
-
-# Optimized Quantum Network Class with PennyLane and Cirq
-class OptimizedQuantumNetwork:
-    def __init__(self, nqubits):
-        self.nqubits = nqubits
-        try:
-            self.dev = qml.device("cirq.simulator", wires=nqubits)
-        except qml.DeviceError as e:
-            print("Error initializing the Cirq simulator. Ensure 'pennylane-cirq' is installed.")
-            raise e
-
-    def apply_grover(self):
-        @qml.qnode(self.dev)
-        def circuit():
-            # Initialize with Hadamard gates
-            for i in range(self.nqubits):
-                qml.Hadamard(wires=i)
-            # Example oracle (customize as needed)
-            qml.PauliZ(wires=self.nqubits - 1)
-            # Example diffuser (Grover's operator)
-            for i in range(self.nqubits):
-                qml.Hadamard(wires=i)
-                qml.PauliX(wires=i)
-            qml.PauliZ(wires=self.nqubits - 1)
-            for i in range(self.nqubits):
-                qml.PauliX(wires=i)
-                qml.Hadamard(wires=i)
-            return [qml.expval(qml.PauliZ(i)) for i in range(self.nqubits)]
-
-        return circuit()
-
-    def simulate(self):
-        return self.apply_grover()
 
 # Movement Sequence Generator Using Sequence
 def move_sequence(start_x, start_y):
@@ -193,7 +131,7 @@ test_images = test_images.reshape((10000, 28, 28, 1)).astype('float32') / 255
 # Apply data augmentation
 datagen.fit(train_images)
 
-# Hybrid Quantum-Classical Model
+# Hybrid Classical Model
 def create_hybrid_model(input_shape):
     model = models.Sequential([
         layers.InputLayer(input_shape=input_shape),
@@ -205,37 +143,46 @@ def create_hybrid_model(input_shape):
                   metrics=['accuracy'])
     return model
 
-# Combine augmented data with quantum features and train the hybrid model
-def combine_augmented_and_quantum_data():
-    quantum_feature_map = create_quantum_feature_map()
+# Custom callback to print training progress in the terminal
+class TrainingProgressCallback(tf.keras.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        print(f"Epoch {epoch + 1}/{self.params['epochs']}")
+        print(f" - loss: {logs.get('loss'):.4f} - accuracy: {logs.get('accuracy'):.4f}")
+
+# Combine augmented data and classical features for training the hybrid model
+def combine_augmented_data():
     augmented_train_data = datagen.flow(train_images[:1000], train_labels[:1000], batch_size=32)
     
-    augmented_quantum_data = []
+    augmented_data = []
     augmented_labels = []
 
     for i, (augmented_images, augmented_labels_batch) in enumerate(augmented_train_data):
-        quantum_features = get_quantum_features(augmented_images.reshape(32, -1), quantum_feature_map)
-        augmented_quantum_data.append(quantum_features)
+        classical_features = get_classical_features(augmented_images.reshape(32, -1))
+        augmented_data.append(classical_features)
         augmented_labels.append(augmented_labels_batch)
     
-    # Flatten the augmented quantum data for training
-    augmented_quantum_data = np.concatenate(augmented_quantum_data, axis=0)
+    # Flatten the augmented data for training
+    augmented_data = np.concatenate(augmented_data, axis=0)
     augmented_labels = np.concatenate(augmented_labels, axis=0)
     
-    return augmented_quantum_data, augmented_labels
+    return augmented_data, augmented_labels
 
-# Train and evaluate the hybrid model
+# Train and evaluate the classical model
 def train_model():
-    augmented_quantum_data, augmented_labels = combine_augmented_and_quantum_data()
-    model = create_hybrid_model(augmented_quantum_data.shape[1:])
-    model.fit(augmented_quantum_data, augmented_labels, epochs=5)
-    quantum_features_test = get_quantum_features(test_images[:10].reshape(10, -1), create_quantum_feature_map())
-    test_loss, test_acc = model.evaluate(quantum_features_test, test_labels[:10], verbose=2)
-    print(f'\nTest accuracy with augmented quantum features: {test_acc}')
+    augmented_data, augmented_labels = combine_augmented_data()
+    model = create_hybrid_model(augmented_data.shape[1:])
+    
+    # Training with callback for progress visualization
+    model.fit(augmented_data, augmented_labels, epochs=5, callbacks=[TrainingProgressCallback()])
+    
+    test_data = get_classical_features(test_images[:10].reshape(10, -1))
+    test_loss, test_acc = model.evaluate(test_data, test_labels[:10], verbose=2)
+    print(f'\nTest accuracy with augmented classical features: {test_acc}')
 
 # Main Execution
 if __name__ == "__main__":
-    print("Training hybrid quantum-classical model...")
+    print("Training hybrid classical model...")
     train_model()
 
     print("\nTesting NASA Path Finder with visualization...")
