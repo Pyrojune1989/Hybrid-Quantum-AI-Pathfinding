@@ -10,7 +10,7 @@ from functools import lru_cache
 import pennylane as qml
 import cirq
 from keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras import models, layers
+from keras import models, layers
 
 # Hebrew Letters Mapping
 hebrew_letters = [
