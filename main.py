@@ -1,12 +1,16 @@
+#!/usr/bin/env python3
 import numpy as np
 import tensorflow as tf
-from qiskit.circuit import Parameter
+from qiskit.circuit import Parameter, QuantumCircuit
+from qiskit.providers.aer import Aer
+from qiskit import execute
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from functools import lru_cache
 import pennylane as qml
 import cirq
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import models, layers
 
 # Hebrew Letters Mapping
 hebrew_letters = [
@@ -58,11 +62,51 @@ def get_quantum_features(data, feature_map):
 
     features = []
     for theta in theta_values:
+        if len(feature_map.parameters) != 1:
+            raise ValueError("Feature map must have exactly one parameter.")
         feature_map = feature_map.bind_parameters({feature_map.parameters[0]: theta})
         result = execute(feature_map, simulator).result()
         statevector = result.get_statevector()
         features.append(np.abs(statevector)**2)  # Get the probability distribution
     return np.array(features)
+
+# NASA Path Finder Class with Visualization
+class NASAPathFinderVisualizer:
+    def __init__(self, grid_size):
+        self.grid_size = grid_size
+        self.weights = generate_sequence(grid_size * grid_size)
+
+    def solve_iterative(self, n, m):
+        dp = [[0] * m for _ in range(n)]
+        dp[n-1][m-1] = 1
+        for x in range(n-1, -1, -1):
+            for y in range(m-1, -1, -1):
+                if x < n-1:
+                    dp[x][y] += dp[x+1][y]
+                if y < m-1:
+                    dp[x][y] += dp[x][y+1]
+        return dp[0][0]
+
+    def visualize_solution(self, n, m, path):
+        grid = np.zeros((n, m))
+
+        # Validate path
+        for (x, y) in path:
+            if x < 0 or x >= n or y < 0 or y >= m:
+                raise ValueError(f"Path contains out-of-bound coordinates: ({x}, {y})")
+
+        # Mark the path
+        for (x, y) in path:
+            grid[x, y] = 1
+
+        plt.imshow(grid, cmap='Greys', interpolation='nearest')
+        plt.title("Pathfinding Solution")
+        plt.xlabel("Columns")
+        plt.ylabel("Rows")
+        plt.xticks(range(m))
+        plt.yticks(range(n))
+        plt.grid(visible=True, which='both', color='black', linestyle='--', linewidth=0.5)
+        plt.show()
 
 # Optimized Quantum Network Class with PennyLane and Cirq
 class OptimizedQuantumNetwork:
@@ -96,40 +140,6 @@ class OptimizedQuantumNetwork:
 
     def simulate(self):
         return self.apply_grover()
-
-# NASA Path Finder Class with Visualization
-class NASAPathFinderVisualizer:
-    def __init__(self, grid_size):
-        self.grid_size = grid_size
-        self.weights = generate_sequence(grid_size * grid_size)
-
-    def solve(self, n, m, x, y):
-        @lru_cache(None)  # Memoization to cache results
-        def helper(x, y):
-            if x >= n or y >= m:
-                return 0
-            if x == n - 1 and y == m - 1:
-                return 1
-            weight = self.weights[(x * m + y) % len(self.weights)][2]  # Use sequence weight
-            return weight * (helper(x + 1, y) + helper(x, y + 1))
-        
-        return helper(x, y)
-
-    def visualize_solution(self, n, m, path):
-        grid = np.zeros((n, m))
-
-        # Mark the path
-        for (x, y) in path:
-            grid[x, y] = 1
-
-        plt.imshow(grid, cmap='Greys', interpolation='nearest')
-        plt.title("Pathfinding Solution")
-        plt.xlabel("Columns")
-        plt.ylabel("Rows")
-        plt.xticks(range(m))
-        plt.yticks(range(n))
-        plt.grid(visible=True, which='both', color='black', linestyle='--', linewidth=0.5)
-        plt.show()
 
 # Movement Sequence Generator Using Sequence
 def move_sequence(start_x, start_y):
