@@ -1,14 +1,12 @@
-I’d like to start a new project on GitHub based on this script                                                                              import numpy as np
+import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers, models
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from qiskit import QuantumCircuit, Aer, execute
 from qiskit.circuit import Parameter
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from functools import lru_cache
 import pennylane as qml
 import cirq
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 # Hebrew Letters Mapping
 hebrew_letters = [
