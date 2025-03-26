@@ -9,7 +9,7 @@ from sklearn.cluster import KMeans
 from functools import lru_cache
 import pennylane as qml
 import cirq
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import models, layers
 
 # Hebrew Letters Mapping
